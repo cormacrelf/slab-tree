@@ -3,6 +3,7 @@ use crate::node::Node;
 use crate::node::NodeRef;
 use crate::tree::Tree;
 use crate::NodeId;
+use crate::iter_mut::NextSiblingsMut;
 
 ///
 /// A mutable reference to a given `Node`'s data and its relatives.
@@ -14,8 +15,14 @@ pub struct NodeMut<'a, T> {
 }
 
 impl<'a, T> NodeMut<'a, T> {
-    pub(crate) fn new(node_id: NodeId, tree: &mut Tree<T>) -> NodeMut<T> {
+    pub(crate) fn new(node_id: NodeId, tree: &'a mut Tree<T>) -> NodeMut<'a, T> {
         NodeMut { node_id, tree }
+    }
+
+    pub fn children_mut(&mut self) -> NextSiblingsMut<'a, T> {
+        let tree_ptr = self.tree as *mut Tree<T>;
+        let first_child_id = self.tree.get_node_relatives(self.node_id).first_child;
+        NextSiblingsMut::new(first_child_id, tree_ptr)
     }
 
     ///

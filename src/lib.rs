@@ -1,4 +1,3 @@
-#![forbid(unsafe_code)]
 
 //!
 //! # slab_tree
@@ -75,6 +74,7 @@
 pub mod behaviors;
 mod core_tree;
 pub mod iter;
+pub mod iter_mut;
 pub mod node;
 mod slab;
 pub mod tree;
@@ -82,6 +82,8 @@ pub mod tree;
 pub use crate::behaviors::RemoveBehavior;
 pub use crate::iter::Ancestors;
 pub use crate::iter::NextSiblings;
+pub use crate::iter_mut::AncestorsMut;
+pub use crate::iter_mut::NextSiblingsMut;
 pub use crate::node::NodeMut;
 pub use crate::node::NodeRef;
 pub use crate::tree::Tree;

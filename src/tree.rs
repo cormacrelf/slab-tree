@@ -265,7 +265,7 @@ impl<T> Tree<T> {
     /// assert_eq!(root.data(), &mut 2);
     /// ```
     ///
-    pub fn get_mut(&mut self, node_id: NodeId) -> Option<NodeMut<T>> {
+    pub fn get_mut<'a>(&'a mut self, node_id: NodeId) -> Option<NodeMut<'a, T>> {
         let _ = self.core_tree.get_mut(node_id)?;
         Some(self.new_node_mut(node_id))
     }
