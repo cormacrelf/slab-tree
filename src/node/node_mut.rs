@@ -45,6 +45,32 @@ impl<'a, T> NodeMut<'a, T> {
     }
 
     ///
+    /// Returns a shared reference to the data contained by the given `Node`.
+    ///
+    /// ```
+    /// use slab_tree::tree::TreeBuilder;
+    ///
+    /// let mut tree = TreeBuilder::new().with_root(1).build();
+    /// let mut root = tree.root_mut().expect("root doesn't exist?");
+    ///
+    /// let data = root.data();
+    ///
+    /// assert_eq!(data, &1);
+    ///
+    /// *data = 3;
+    ///
+    /// assert_eq!(data, &3);
+    /// ```
+    ///
+    pub fn data(&self) -> &T {
+        if let Some(node) = self.tree.get_node(self.node_id) {
+            &node.data
+        } else {
+            unreachable!()
+        }
+    }
+
+    ///
     /// Returns a mutable reference to the data contained by the given `Node`.
     ///
     /// ```
@@ -62,7 +88,7 @@ impl<'a, T> NodeMut<'a, T> {
     /// assert_eq!(data, &mut 3);
     /// ```
     ///
-    pub fn data(&mut self) -> &mut T {
+    pub fn data_mut(&mut self) -> &mut T {
         if let Some(node) = self.tree.get_node_mut(self.node_id) {
             &mut node.data
         } else {
@@ -195,6 +221,26 @@ impl<'a, T> NodeMut<'a, T> {
     /// ```
     ///
     pub fn append(&mut self, data: T) -> NodeMut<T> {
+        let new_id = self.tree.core_tree.insert(data);
+
+        let relatives = self.tree.get_node_relatives(self.node_id);
+
+        let prev_sibling = relatives.last_child;
+        self.tree.set_parent(new_id, Some(self.node_id));
+        self.tree.set_prev_sibling(new_id, prev_sibling);
+
+        let first_child = relatives.first_child.or_else(|| Some(new_id));
+        self.tree.set_first_child(self.node_id, first_child);
+        self.tree.set_last_child(self.node_id, Some(new_id));
+
+        if let Some(node_id) = prev_sibling {
+            self.tree.set_next_sibling(node_id, Some(new_id));
+        }
+
+        NodeMut::new(new_id, self.tree)
+    }
+
+    pub fn append_move(self, data: T) -> NodeMut<'a, T> {
         let new_id = self.tree.core_tree.insert(data);
 
         let relatives = self.tree.get_node_relatives(self.node_id);

@@ -2,37 +2,6 @@ use crate::node::*;
 use crate::tree::Tree;
 use crate::NodeId;
 
-// todo: document this
-
-pub struct AncestorsMut<'a, T> {
-    node_id: Option<NodeId>,
-    tree: *mut Tree<T>,
-    _marker: PhantomData<&'a mut ()>,
-}
-
-impl<'a, T> AncestorsMut<'a, T> {
-    pub(crate) fn new(node_id: Option<NodeId>, tree: &'a mut Tree<T>) -> AncestorsMut<T> {
-        AncestorsMut { node_id, tree, _marker: Default::default() }
-    }
-}
-
-impl<'a, T: 'a> Iterator for AncestorsMut<'a, T> {
-    type Item = NodeMut<'a, T>;
-
-    fn next(&mut self) -> Option<NodeMut<'a, T>> {
-        let tree_ref = unsafe {
-            &mut *self.tree as &'a mut Tree<T>
-        };
-        self.node_id
-            .take()
-            .and_then(|node_id| tree_ref.get_node_relatives(node_id).parent)
-            .map(move |id| {
-                self.node_id = Some(id);
-                NodeMut::new(id, tree_ref)
-            })
-    }
-}
-
 use std::marker::PhantomData;
 
 // possibly re-name this, not sure how I feel about it
@@ -49,16 +18,16 @@ impl<'a, T> NextSiblingsMut<'a, T> {
 }
 
 impl<'a, T: 'a> Iterator for NextSiblingsMut<'a, T> {
-    type Item = NodeMut<'a, T>;
+    type Item = NarrowMut<'a, T>;
 
-    fn next(&mut self) -> Option<NodeMut<'a, T>> {
+    fn next(&mut self) -> Option<NarrowMut<'a, T>> {
         self.node_id.take().map(|node_id| {
             // Unsafety: YOLO
             let tree_ref = unsafe {
                 &mut *self.tree as &'a mut Tree<T>
             };
             self.node_id = tree_ref.get_node_relatives(node_id).next_sibling;
-            NodeMut::new(node_id, tree_ref)
+            NarrowMut::new(NodeMut::new(node_id, tree_ref))
         })
     }
 }
@@ -86,14 +55,14 @@ impl<'a, T> PreOrder<'a, T> {
 }
 
 impl<'a, T: 'a> Iterator for PreOrder<'a, T> {
-    type Item = NodeMut<'a, T>;
+    type Item = NarrowMut<'a, T>;
 
-    fn next(&mut self) -> Option<NodeMut<'a, T>> {
+    fn next(&mut self) -> Option<NarrowMut<'a, T>> {
         if let Some(mut node) = self.start.take() {
             let first_child_id = node.first_child().map(|child_ref| child_ref.node_id());
             self.children
                 .push(NextSiblingsMut::new(first_child_id, self.tree));
-            Some(node)
+            Some(NarrowMut::new(node))
         } else {
             while self.children.len() > 0 {
                 if let Some(mut node_ref) = self.children.last_mut().and_then(Iterator::next) {
@@ -130,9 +99,9 @@ impl<'a, T> PostOrderMut<'a, T> {
 }
 
 impl<'a, T> Iterator for PostOrderMut<'a, T> {
-    type Item = NodeMut<'a, T>;
+    type Item = NarrowMut<'a, T>;
 
-    fn next(&mut self) -> Option<NodeMut<'a, T>> {
+    fn next(&mut self) -> Option<NarrowMut<'a, T>> {
         if let Some((node, mut children)) = self.nodes.pop() {
             if let Some(next) = children.next() {
                 self.nodes.push((node, children));
@@ -148,11 +117,11 @@ impl<'a, T> Iterator for PostOrderMut<'a, T> {
                         assert!(children.next().is_some(), "skipping first child");
                         self.nodes.push((node, children));
                     } else {
-                        break Some(node);
+                        break Some(NarrowMut::new(node));
                     }
                 }
             } else {
-                Some(node)
+                Some(NarrowMut::new(node))
             }
         } else {
             None
@@ -183,9 +152,9 @@ impl<'a, T> LevelOrder<'a, T> {
 }
 
 impl<'a, T> Iterator for LevelOrder<'a, T> {
-    type Item = NodeMut<'a, T>;
+    type Item = NarrowMut<'a, T>;
 
-    fn next(&mut self) -> Option<NodeMut<'a, T>> {
+    fn next(&mut self) -> Option<NarrowMut<'a, T>> {
         let tree_ref = unsafe {
             &mut *self.tree as &'a mut Tree<T>
         };
@@ -198,7 +167,7 @@ impl<'a, T> Iterator for LevelOrder<'a, T> {
             let node = tree_ref
                 .get_mut(self.start.node_id())
                 .expect("getting node of existing node ref id");
-            Some(node)
+            Some(NarrowMut::new(node))
         } else {
             let mut on_level = self.levels.len();
             let next_level = on_level + 1;

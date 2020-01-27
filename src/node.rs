@@ -1,8 +1,10 @@
 mod node_mut;
 mod node_ref;
+mod narrow_mut;
 
 pub use self::node_mut::NodeMut;
 pub use self::node_ref::NodeRef;
+pub use self::narrow_mut::NarrowMut;
 
 use crate::NodeId;
 
